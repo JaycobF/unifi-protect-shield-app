@@ -71,7 +71,7 @@ fun AppOptionsDialog(
         Column(
             Modifier
                 .width(400.dp)
-                .background(SurfaceContainers.High, MaterialTheme.shapes.extraLarge)
+                .background(surfaceContainers.high, MaterialTheme.shapes.extraLarge)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -104,7 +104,7 @@ fun AppOptionsDialog(
                         headlineContent = { Text(option.label) },
                         leadingContent = { Icon(option.icon, contentDescription = null, modifier = Modifier.size(ListItemDefaults.IconSize)) },
                         colors = ListItemDefaults.colors(
-                            containerColor = SurfaceContainers.High,
+                            containerColor = surfaceContainers.high,
                             contentColor = colors.onSurface,
                         ),
                     )

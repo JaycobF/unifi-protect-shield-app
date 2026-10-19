@@ -54,6 +54,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.tv:tv-material:1.0.0")
     implementation("androidx.palette:palette-ktx:1.0.0")
+    // Kotlin port of Material Color Utilities (the Material You colour engine).
+    implementation("com.materialkolor:material-color-utilities:2.0.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

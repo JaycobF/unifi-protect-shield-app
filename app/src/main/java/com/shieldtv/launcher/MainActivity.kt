@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.shieldtv.launcher.data.LauncherApp
+import com.shieldtv.launcher.ui.DEFAULT_SEED_COLOR
 import com.shieldtv.launcher.ui.LauncherScreen
 import com.shieldtv.launcher.ui.LauncherTheme
 import kotlinx.coroutines.launch
@@ -36,7 +37,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
             val wallpaper by viewModel.wallpaper.collectAsStateWithLifecycle()
-            LauncherTheme {
+            LauncherTheme(seedColor = wallpaper?.seedColor ?: DEFAULT_SEED_COLOR) {
                 LauncherScreen(
                     state = state,
                     wallpaper = wallpaper,

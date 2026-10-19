@@ -5,9 +5,13 @@ devices) with a **Material Design 3** look and a Google TV-style layout.
 
 ![Home](app/screenshots/home.png)
 
-| Browsing lower rows | All apps | Long-press menu |
-| --- | --- | --- |
-| ![Rows](app/screenshots/home_row2.png) | ![Apps](app/screenshots/apps.png) | ![Options](app/screenshots/options.png) |
+| Scheme from a different photo | Browsing lower rows |
+| --- | --- |
+| ![Coast](app/screenshots/home_coast.png) | ![Rows](app/screenshots/home_row2.png) |
+
+| All apps | Long-press menu |
+| --- | --- |
+| ![Apps](app/screenshots/apps.png) | ![Options](app/screenshots/options.png) |
 
 _Screenshots are rendered headlessly with placeholder apps and a painted stand-in backdrop; on a device the tiles show each app's real banner and the background is an Earth View photo._
 
@@ -15,9 +19,13 @@ _Screenshots are rendered headlessly with placeholder apps and a painted stand-i
 
 Built on **Material Design 3** via Compose for TV (`androidx.tv:tv-material`):
 
-- **Colour:** a full M3 dark tonal scheme generated with material-color-utilities
-  (`SchemeTonalSpot`) from the seed `#76B900`, including the surface-container roles.
-  The background picks up a faint wash of the focused app's colour (content-based colour).
+- **Dynamic colour (Material You):** the whole M3 dark scheme, including the surface-container
+  roles, is generated on the device from the current backdrop photo. It uses Material Color
+  Utilities, the same engine Android uses for wallpaper colours: the photo is quantized
+  (Celebi), the best source colour is scored, and a `SchemeTonalSpot` scheme is built from it.
+  When the photo changes, every colour role fades to the new scheme along with the image.
+  Before any photo has loaded (or with no network) the seed is `#76B900`. The background also
+  picks up a faint wash of the focused app's colour.
 - **Type & shape:** the M3 type scale (display, headline, title, body, label roles) and the
   M3 shape scale (extra-small 4dp to extra-large 28dp).
 - **Components:** TV Material 3 `TabRow` with the pill indicator, `Card`s with the scheme's
@@ -46,7 +54,7 @@ down, and horizontal rows of 16:9 tiles.
 - **Apps** tab with a full grid of everything installed; **Games** detected via the app category.
 - Live clock/date, Settings shortcut, and automatic refresh when apps are installed, updated or removed.
 - Back never exits the launcher; it returns to the Home tab.
-- Rotating Google Earth View photo backdrop with location and credit.
+- Rotating Google Earth View photo backdrop with location and credit, and an M3 colour scheme generated from each photo.
 
 ## Build & install
 
@@ -82,7 +90,7 @@ Shield Home also appears in the regular app list, so it can be opened like any o
   ```bash
   ./gradlew recordRoborazziDebug   # regenerate app/screenshots/*.png
   # Preview with a real photo instead of the stand-in (don't commit the result):
-  PREVIEW_WALLPAPER=/path/to/photo.jpg ./gradlew recordRoborazziDebug --rerun-tasks
+  PREVIEW_WALLPAPER=/path/a.jpg PREVIEW_WALLPAPER_2=/path/b.jpg ./gradlew recordRoborazziDebug --rerun-tasks
   ```
 
 ```
@@ -91,6 +99,6 @@ app/src/main/java/com/shieldtv/launcher/
 ├── LauncherViewModel.kt     # app list + favourites state
 ├── data/AppRepository.kt    # queries installed apps, banners, icons, accent colours
 ├── data/FavoritesStore.kt   # persisted, ordered favourites
-├── data/WallpaperRepository.kt # Earth View backdrop fetch + cache
-└── ui/                      # TopBar, HeroShelf, AppCard, AppOptionsDialog, LauncherScreen
+├── data/WallpaperRepository.kt # Earth View backdrop fetch + cache, seed colour extraction
+└── ui/                      # Theme (dynamic M3 scheme), TopBar, HeroShelf, AppCard, AppOptionsDialog, LauncherScreen
 ```

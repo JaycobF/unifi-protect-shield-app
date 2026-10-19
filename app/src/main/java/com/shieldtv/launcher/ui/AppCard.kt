@@ -67,7 +67,7 @@ fun AppCard(
                     if (it.isFocused) onFocused()
                 },
             shape = CardDefaults.shape(shape),
-            colors = CardDefaults.colors(containerColor = SurfaceContainers.High),
+            colors = CardDefaults.colors(containerColor = surfaceContainers.high),
             scale = CardDefaults.scale(focusedScale = 1.1f),
             border = CardDefaults.border(
                 focusedBorder = Border(BorderStroke(3.dp, colors.border), shape = shape),
@@ -107,10 +107,10 @@ fun AppArtwork(app: LauncherApp, modifier: Modifier = Modifier) {
         )
         return
     }
-    val container = lerp(SurfaceContainers.Highest, app.accent, 0.35f)
+    val container = lerp(surfaceContainers.highest, app.accent, 0.35f)
     Column(
         modifier = modifier.background(
-            Brush.verticalGradient(listOf(container, lerp(container, SurfaceContainers.Low, 0.6f))),
+            Brush.verticalGradient(listOf(container, lerp(container, surfaceContainers.low, 0.6f))),
         ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,

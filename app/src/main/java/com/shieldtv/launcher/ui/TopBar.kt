@@ -90,7 +90,7 @@ fun TopBar(
             selectedTabIndex = selected.ordinal,
             modifier = Modifier
                 .align(Alignment.Center)
-                .background(SurfaceContainers.High, CircleShape)
+                .background(surfaceContainers.high, CircleShape)
                 .padding(4.dp),
             indicator = { tabPositions, doesTabRowHaveFocus ->
                 TabRowDefaults.PillIndicator(
@@ -137,7 +137,7 @@ fun TopBar(
             IconButton(
                 onClick = onOpenSettings,
                 colors = IconButtonDefaults.colors(
-                    containerColor = SurfaceContainers.High,
+                    containerColor = surfaceContainers.high,
                     contentColor = colors.onSurfaceVariant,
                     focusedContainerColor = colors.inverseSurface,
                     focusedContentColor = colors.inverseOnSurface,

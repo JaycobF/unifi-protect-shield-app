@@ -22,6 +22,7 @@ import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.shieldtv.launcher.LauncherState
 import com.shieldtv.launcher.data.LauncherApp
 import com.shieldtv.launcher.data.Wallpaper
+import com.shieldtv.launcher.data.extractSeedColor
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,10 +59,22 @@ class LauncherScreenshotTest {
      * Stand-in backdrop. Set PREVIEW_WALLPAPER to a local JPEG (e.g. an Earth View photo) to
      * preview with a real image; committed screenshots use the synthetic one.
      */
-    private val wallpaper = Wallpaper(
-        image = (System.getenv("PREVIEW_WALLPAPER")?.let { BitmapFactory.decodeFile(it) } ?: landscape()).asImageBitmap(),
+    private val wallpaper = wallpaperOf(
+        System.getenv("PREVIEW_WALLPAPER")?.let { BitmapFactory.decodeFile(it) } ?: landscape(),
         location = "Marble Canyon, United States",
+    )
+
+    /** A second, cooler backdrop to show the scheme following the photo. */
+    private val coastWallpaper = wallpaperOf(
+        System.getenv("PREVIEW_WALLPAPER_2")?.let { BitmapFactory.decodeFile(it) } ?: coast(),
+        location = "Exuma, The Bahamas",
+    )
+
+    private fun wallpaperOf(bitmap: Bitmap, location: String) = Wallpaper(
+        image = bitmap.asImageBitmap(),
+        location = location,
         attribution = "©2019 Maxar Technologies",
+        seedColor = extractSeedColor(bitmap),
     )
 
     @Test
@@ -81,6 +94,13 @@ class LauncherScreenshotTest {
     }
 
     @Test
+    fun homeCoastWallpaper() {
+        render(LauncherTab.Home, coastWallpaper)
+        compose.waitForIdle()
+        captureScreenRoboImage("screenshots/home_coast.png")
+    }
+
+    @Test
     fun appsTab() {
         render(LauncherTab.Apps)
         compose.waitForIdle()
@@ -90,7 +110,7 @@ class LauncherScreenshotTest {
     @Test
     fun optionsDialog() {
         compose.setContent {
-            LauncherTheme {
+            LauncherTheme(seedColor = wallpaper.seedColor) {
                 AppOptionsDialog(
                     app = apps[1], isFavorite = true, favoriteIndex = 1, favoriteCount = 6,
                     onDismiss = {}, onOpen = {}, onToggleFavorite = {}, onMove = {}, onAppInfo = {},
@@ -101,12 +121,12 @@ class LauncherScreenshotTest {
         captureScreenRoboImage("screenshots/options.png")
     }
 
-    private fun render(tab: LauncherTab) {
+    private fun render(tab: LauncherTab, backdrop: Wallpaper = wallpaper) {
         compose.setContent {
-            LauncherTheme {
+            LauncherTheme(seedColor = backdrop.seedColor) {
                 LauncherScreen(
                     state = state,
-                    wallpaper = wallpaper,
+                    wallpaper = backdrop,
                     onLaunch = {}, onAppInfo = {}, onOpenSettings = {},
                     onToggleFavorite = {}, onMoveFavorite = { _, _ -> },
                     initialTab = tab,
@@ -178,6 +198,34 @@ class LauncherScreenshotTest {
             strokeWidth = 46f
             color = 0xFF2F6F73.toInt()
         })
+        return bmp
+    }
+
+    /** Painted aerial-style coastline: turquoise shallows, sand bars and deep water. */
+    private fun coast(): Bitmap {
+        val w = 1800f
+        val h = 1200f
+        val bmp = Bitmap.createBitmap(w.toInt(), h.toInt(), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawRect(0f, 0f, w, h, Paint().apply {
+            shader = LinearGradient(0f, 0f, w, h, 0xFF0B3C6B.toInt(), 0xFF06243F.toInt(), Shader.TileMode.CLAMP)
+        })
+        val shallows = Path().apply {
+            moveTo(0f, 300f)
+            cubicTo(500f, 150f, 900f, 650f, 1800f, 380f)
+            lineTo(1800f, 900f)
+            cubicTo(1100f, 1100f, 600f, 700f, 0f, 950f)
+            close()
+        }
+        canvas.drawPath(shallows, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF1FA6B8.toInt() })
+        val sand = Path().apply {
+            moveTo(0f, 520f)
+            cubicTo(600f, 420f, 1000f, 760f, 1800f, 560f)
+            lineTo(1800f, 640f)
+            cubicTo(1000f, 840f, 600f, 520f, 0f, 610f)
+            close()
+        }
+        canvas.drawPath(sand, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE8DDB5.toInt() })
         return bmp
     }
 
