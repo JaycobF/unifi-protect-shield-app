@@ -1,10 +1,12 @@
 package com.shieldtv.launcher.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -29,18 +32,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.shieldtv.launcher.LauncherState
 import com.shieldtv.launcher.data.LauncherApp
+import com.shieldtv.launcher.data.Wallpaper
 
 private val EdgePadding = 56.dp
 
@@ -49,6 +56,7 @@ private data class HomeRow(val title: String, val apps: List<LauncherApp>, val c
 @Composable
 fun LauncherScreen(
     state: LauncherState,
+    wallpaper: Wallpaper?,
     onLaunch: (LauncherApp) -> Unit,
     onAppInfo: (LauncherApp) -> Unit,
     onOpenSettings: () -> Unit,
@@ -69,10 +77,16 @@ fun LauncherScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
+        Backdrop(wallpaper)
         AmbientBackground(accent = hero?.accent ?: MaterialTheme.colorScheme.primary)
 
         Column(Modifier.fillMaxSize()) {
-            TopBar(selected = tab, onSelect = { tab = it }, onOpenSettings = onOpenSettings)
+            TopBar(
+                selected = tab,
+                onSelect = { tab = it },
+                onOpenSettings = onOpenSettings,
+                location = wallpaper?.location.orEmpty(),
+            )
 
             when (tab) {
                 LauncherTab.Home -> HomeContent(
@@ -90,6 +104,20 @@ fun LauncherScreen(
                 )
             }
         }
+
+        wallpaper?.attribution?.takeIf { it.isNotEmpty() }?.let {
+            Text(
+                text = "Google Earth  ·  $it",
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = EdgePadding, bottom = 12.dp)
+                    .widthIn(max = 560.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.End,
+                maxLines = 2,
+            )
+        }
     }
 
     optionsFor?.let { app ->
@@ -104,6 +132,42 @@ fun LauncherScreen(
             onToggleFavorite = { onToggleFavorite(app) },
             onMove = { delta -> onMoveFavorite(app, delta) },
             onAppInfo = { onAppInfo(app) },
+        )
+    }
+}
+
+/**
+ * Full-bleed Earth View photo under an M3 scrim: lighter at the top so the photo reads,
+ * near-opaque surface at the bottom where the rows sit, and darker on the left behind the hero text.
+ */
+@Composable
+private fun Backdrop(wallpaper: Wallpaper?) {
+    val surface = MaterialTheme.colorScheme.surface
+    Crossfade(targetState = wallpaper, animationSpec = tween(1500), label = "wallpaper") { current ->
+        if (current != null) {
+            Image(
+                bitmap = current.image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+    if (wallpaper == null) return
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(
+            Brush.verticalGradient(
+                0f to surface.copy(alpha = 0.45f),
+                0.4f to surface.copy(alpha = 0.6f),
+                0.65f to surface.copy(alpha = 0.85f),
+                1f to surface.copy(alpha = 0.95f),
+            )
+        )
+        drawRect(
+            Brush.horizontalGradient(
+                0f to surface.copy(alpha = 0.55f),
+                0.55f to Color.Transparent,
+            )
         )
     }
 }

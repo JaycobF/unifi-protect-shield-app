@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.IconButton
@@ -42,6 +45,8 @@ fun TopBar(
     onSelect: (LauncherTab) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Where the current backdrop photo was taken; shown under the greeting. */
+    location: String = "",
 ) {
     val now = rememberNow()
     val context = LocalContext.current
@@ -53,12 +58,33 @@ fun TopBar(
             .fillMaxWidth()
             .padding(start = 56.dp, end = 56.dp, top = 28.dp),
     ) {
-        Text(
-            text = greeting(now),
-            modifier = Modifier.align(Alignment.CenterStart),
-            color = colors.onSurfaceVariant,
-            style = type.titleMedium,
-        )
+        Column(Modifier.align(Alignment.CenterStart)) {
+            Text(
+                text = greeting(now),
+                color = colors.onSurface,
+                style = type.titleMedium,
+            )
+            if (location.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Rounded.Place,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = colors.onSurfaceVariant,
+                    )
+                    Text(
+                        text = location,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .widthIn(max = 260.dp),
+                        color = colors.onSurfaceVariant,
+                        style = type.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
 
         TabRow(
             selectedTabIndex = selected.ordinal,

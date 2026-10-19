@@ -1,11 +1,15 @@
 package com.shieldtv.launcher
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shieldtv.launcher.data.AppRepository
 import com.shieldtv.launcher.data.FavoritesStore
 import com.shieldtv.launcher.data.LauncherApp
+import com.shieldtv.launcher.data.Wallpaper
+import com.shieldtv.launcher.data.WallpaperRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +34,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val repository = AppRepository(application)
     private val favoritesStore = FavoritesStore(application)
+    private val wallpapers = WallpaperRepository(application)
+
+    private val _wallpaper = MutableStateFlow<Wallpaper?>(null)
+    val wallpaper: StateFlow<Wallpaper?> = _wallpaper
+    private var wallpaperChangedAt = 0L
 
     private val apps = MutableStateFlow<List<LauncherApp>?>(null)
     private val favoriteKeys = MutableStateFlow(favoritesStore.load())
@@ -53,6 +62,25 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val loaded = repository.loadApps()
             if (!favoritesStore.isInitialized()) seedFavorites(loaded)
             apps.value = loaded
+        }
+    }
+
+    /**
+     * Shows the cached backdrop straight away, then swaps in a new photo on return to the
+     * launcher and every [WALLPAPER_INTERVAL_MS] while it stays visible. Call while started.
+     */
+    suspend fun rotateWallpapers() {
+        if (_wallpaper.value == null) _wallpaper.value = wallpapers.cached()
+        while (true) {
+            val sinceChange = SystemClock.elapsedRealtime() - wallpaperChangedAt
+            if (wallpaperChangedAt != 0L && sinceChange < WALLPAPER_MIN_GAP_MS) {
+                delay(WALLPAPER_INTERVAL_MS - sinceChange)
+            }
+            wallpapers.next()?.let {
+                _wallpaper.value = it
+                wallpaperChangedAt = SystemClock.elapsedRealtime()
+            }
+            delay(WALLPAPER_INTERVAL_MS)
         }
     }
 
@@ -82,5 +110,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val seed = (preferred + filler).take(FavoritesStore.DEFAULT_COUNT).map { it.key }
         favoritesStore.save(seed)
         favoriteKeys.value = seed
+    }
+
+    private companion object {
+        const val WALLPAPER_INTERVAL_MS = 15 * 60 * 1000L
+        /** Avoid a new photo every time the user pops back to Home for a moment. */
+        const val WALLPAPER_MIN_GAP_MS = 2 * 60 * 1000L
     }
 }

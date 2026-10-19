@@ -2,9 +2,11 @@ package com.shieldtv.launcher.ui
 
 import android.content.ComponentName
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Shader
 import android.graphics.Typeface
 import androidx.compose.ui.graphics.Color
@@ -19,6 +21,7 @@ import androidx.compose.ui.test.pressKey
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.shieldtv.launcher.LauncherState
 import com.shieldtv.launcher.data.LauncherApp
+import com.shieldtv.launcher.data.Wallpaper
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +53,16 @@ class LauncherScreenshotTest {
         fakeApp("Puzzle Pop", 0xFFD81B60, withBanner = true, isGame = true),
     )
     private val state = LauncherState(loaded = true, allApps = apps, favorites = apps.take(6))
+
+    /**
+     * Stand-in backdrop. Set PREVIEW_WALLPAPER to a local JPEG (e.g. an Earth View photo) to
+     * preview with a real image; committed screenshots use the synthetic one.
+     */
+    private val wallpaper = Wallpaper(
+        image = (System.getenv("PREVIEW_WALLPAPER")?.let { BitmapFactory.decodeFile(it) } ?: landscape()).asImageBitmap(),
+        location = "Marble Canyon, United States",
+        attribution = "©2019 Maxar Technologies",
+    )
 
     @Test
     fun home() {
@@ -93,6 +106,7 @@ class LauncherScreenshotTest {
             LauncherTheme {
                 LauncherScreen(
                     state = state,
+                    wallpaper = wallpaper,
                     onLaunch = {}, onAppInfo = {}, onOpenSettings = {},
                     onToggleFavorite = {}, onMoveFavorite = { _, _ -> },
                     initialTab = tab,
@@ -130,6 +144,40 @@ class LauncherScreenshotTest {
             textAlign = Paint.Align.CENTER
         }
         canvas.drawText(label, 320f, 200f, text)
+        return bmp
+    }
+
+    /** Painted aerial-style landscape: river valley through layered terrain. */
+    private fun landscape(): Bitmap {
+        val w = 1800f
+        val h = 1200f
+        val bmp = Bitmap.createBitmap(w.toInt(), h.toInt(), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawRect(0f, 0f, w, h, Paint().apply {
+            shader = LinearGradient(0f, 0f, w, h, 0xFFC9A46B.toInt(), 0xFF6E4A2E.toInt(), Shader.TileMode.CLAMP)
+        })
+        val bands = listOf(0xFFB5895A, 0xFF9C6F45, 0xFF845A37, 0xFF6B472B)
+        bands.forEachIndexed { i, color ->
+            val path = Path().apply {
+                val y = 200f + i * 260f
+                moveTo(0f, y)
+                cubicTo(w * 0.3f, y - 180f, w * 0.6f, y + 220f, w, y - 60f)
+                lineTo(w, y + 140f)
+                cubicTo(w * 0.6f, y + 340f, w * 0.3f, y + 40f, 0f, y + 160f)
+                close()
+            }
+            canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color.toInt() })
+        }
+        val river = Path().apply {
+            moveTo(-50f, 900f)
+            cubicTo(500f, 650f, 900f, 1050f, 1300f, 700f)
+            cubicTo(1500f, 520f, 1700f, 560f, 1850f, 420f)
+        }
+        canvas.drawPath(river, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 46f
+            color = 0xFF2F6F73.toInt()
+        })
         return bmp
     }
 

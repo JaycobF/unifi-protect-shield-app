@@ -14,10 +14,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.shieldtv.launcher.data.LauncherApp
 import com.shieldtv.launcher.ui.LauncherScreen
 import com.shieldtv.launcher.ui.LauncherTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -31,9 +35,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
+            val wallpaper by viewModel.wallpaper.collectAsStateWithLifecycle()
             LauncherTheme {
                 LauncherScreen(
                     state = state,
+                    wallpaper = wallpaper,
                     onLaunch = ::launch,
                     onAppInfo = ::openAppInfo,
                     onOpenSettings = { startSafely(Intent(Settings.ACTION_SETTINGS)) },
@@ -41,6 +47,9 @@ class MainActivity : ComponentActivity() {
                     onMoveFavorite = viewModel::moveFavorite,
                 )
             }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.rotateWallpapers() }
         }
     }
 
