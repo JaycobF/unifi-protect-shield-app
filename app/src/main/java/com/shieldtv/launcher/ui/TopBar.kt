@@ -1,9 +1,7 @@
 package com.shieldtv.launcher.ui
 
 import android.text.format.DateFormat
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,25 +20,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.tv.material3.Border
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
-import androidx.tv.material3.SelectableSurfaceDefaults
-import androidx.tv.material3.Surface
+import androidx.tv.material3.IconButton
+import androidx.tv.material3.IconButtonDefaults
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Tab
+import androidx.tv.material3.TabRow
+import androidx.tv.material3.TabRowDefaults
 import androidx.tv.material3.Text
 import kotlinx.coroutines.delay
 import java.util.Calendar
 
 enum class LauncherTab(val title: String) { Home("Home"), Apps("Apps") }
 
-/** Greeting on the left (Google TV), frosted tab pill in the centre (tvOS), clock + settings on the right. */
+/** Greeting on the left, M3 pill tab row in the centre, clock + settings on the right. */
 @Composable
 fun TopBar(
     selected: LauncherTab,
@@ -50,6 +45,8 @@ fun TopBar(
 ) {
     val now = rememberNow()
     val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
+    val type = MaterialTheme.typography
 
     Box(
         modifier
@@ -59,21 +56,38 @@ fun TopBar(
         Text(
             text = greeting(now),
             modifier = Modifier.align(Alignment.CenterStart),
-            color = LauncherColors.TextSecondary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
+            color = colors.onSurfaceVariant,
+            style = type.titleMedium,
         )
 
-        Row(
-            Modifier
+        TabRow(
+            selectedTabIndex = selected.ordinal,
+            modifier = Modifier
                 .align(Alignment.Center)
-                .background(LauncherColors.Glass, CircleShape)
-                .border(1.dp, LauncherColors.GlassBorder, CircleShape)
-                .padding(5.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .background(SurfaceContainers.High, CircleShape)
+                .padding(4.dp),
+            indicator = { tabPositions, doesTabRowHaveFocus ->
+                TabRowDefaults.PillIndicator(
+                    currentTabPosition = tabPositions[selected.ordinal],
+                    doesTabRowHaveFocus = doesTabRowHaveFocus,
+                    activeColor = colors.onSurface,
+                    inactiveColor = colors.secondaryContainer,
+                )
+            },
         ) {
             LauncherTab.entries.forEach { tab ->
-                TabPill(tab.title, selected = tab == selected, onSelect = { onSelect(tab) })
+                // onFocus selects the tab, matching Google TV's focus-to-switch behaviour.
+                Tab(
+                    selected = tab == selected,
+                    onFocus = { onSelect(tab) },
+                    onClick = { onSelect(tab) },
+                ) {
+                    Text(
+                        text = tab.title,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                        style = type.labelLarge,
+                    )
+                }
             }
         }
 
@@ -85,76 +99,27 @@ fun TopBar(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = DateFormat.getTimeFormat(context).format(now.time),
-                    color = LauncherColors.TextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
+                    style = type.titleLarge,
                 )
                 Text(
                     text = DateFormat.format("EEE, MMM d", now).toString(),
-                    color = LauncherColors.TextSecondary,
-                    fontSize = 12.sp,
+                    color = colors.onSurfaceVariant,
+                    style = type.labelMedium,
                 )
             }
-            SettingsButton(onOpenSettings)
+            IconButton(
+                onClick = onOpenSettings,
+                colors = IconButtonDefaults.colors(
+                    containerColor = SurfaceContainers.High,
+                    contentColor = colors.onSurfaceVariant,
+                    focusedContainerColor = colors.inverseSurface,
+                    focusedContentColor = colors.inverseOnSurface,
+                ),
+            ) {
+                Icon(Icons.Rounded.Settings, contentDescription = "Settings", modifier = Modifier.size(20.dp))
+            }
         }
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun TabPill(title: String, selected: Boolean, onSelect: () -> Unit) {
-    Surface(
-        selected = selected,
-        onClick = onSelect,
-        // Google TV switches tabs as soon as focus lands on them.
-        modifier = Modifier.onFocusChanged { if (it.isFocused && !selected) onSelect() },
-        shape = SelectableSurfaceDefaults.shape(CircleShape),
-        colors = SelectableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = LauncherColors.TextSecondary,
-            selectedContainerColor = Color.White.copy(alpha = 0.16f),
-            selectedContentColor = LauncherColors.TextPrimary,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color.Black,
-            focusedSelectedContainerColor = Color.White,
-            focusedSelectedContentColor = Color.Black,
-        ),
-        scale = SelectableSurfaceDefaults.scale(focusedScale = 1.05f),
-    ) {
-        Text(
-            text = title,
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun SettingsButton(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(44.dp),
-        shape = ClickableSurfaceDefaults.shape(CircleShape),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = LauncherColors.Glass,
-            contentColor = LauncherColors.TextPrimary,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color.Black,
-        ),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(1.dp, LauncherColors.GlassBorder), shape = CircleShape),
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Settings,
-            contentDescription = "Settings",
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(22.dp),
-        )
     }
 }
 

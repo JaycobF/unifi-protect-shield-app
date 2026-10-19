@@ -35,10 +35,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.shieldtv.launcher.LauncherState
 import com.shieldtv.launcher.data.LauncherApp
@@ -68,9 +67,9 @@ fun LauncherScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(LauncherColors.Background)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        AmbientBackground(accent = hero?.accent ?: LauncherColors.Accent)
+        AmbientBackground(accent = hero?.accent ?: MaterialTheme.colorScheme.primary)
 
         Column(Modifier.fillMaxSize()) {
             TopBar(selected = tab, onSelect = { tab = it }, onOpenSettings = onOpenSettings)
@@ -109,15 +108,15 @@ fun LauncherScreen(
     }
 }
 
-/** Soft colour wash bleeding in from the top right, tinted by the focused app's artwork. */
+/** Subtle colour wash from the top right, tinted by the focused app (content-based colour, M3 style). */
 @Composable
 private fun AmbientBackground(accent: Color) {
     val color by animateColorAsState(accent, tween(700), label = "ambient")
     Canvas(Modifier.fillMaxSize()) {
         drawRect(
             Brush.radialGradient(
-                0f to color.copy(alpha = 0.42f),
-                0.55f to color.copy(alpha = 0.12f),
+                0f to color.copy(alpha = 0.22f),
+                0.55f to color.copy(alpha = 0.06f),
                 1f to Color.Transparent,
                 center = Offset(size.width * 0.85f, size.height * 0.05f),
                 radius = size.width * 0.75f,
@@ -125,7 +124,7 @@ private fun AmbientBackground(accent: Color) {
         )
         drawRect(
             Brush.radialGradient(
-                0f to color.copy(alpha = 0.10f),
+                0f to color.copy(alpha = 0.05f),
                 1f to Color.Transparent,
                 center = Offset(0f, size.height),
                 radius = size.width * 0.5f,
@@ -175,7 +174,8 @@ private fun HomeContent(
             Text(
                 "No apps found",
                 modifier = Modifier.padding(EdgePadding),
-                color = LauncherColors.TextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
 
@@ -188,9 +188,8 @@ private fun HomeContent(
                     Text(
                         text = row.title,
                         modifier = Modifier.padding(start = EdgePadding, top = 8.dp),
-                        color = LauncherColors.TextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                     LazyRow(
                         // Vertical padding leaves room for the focused card's scale + glow.
@@ -206,7 +205,7 @@ private fun HomeContent(
                                         if (rowIndex == 0 && index == 0) Modifier.focusRequester(firstCard)
                                         else Modifier
                                     ),
-                                cornerRadius = if (rowIndex == 0) 20.dp else 14.dp,
+                                shape = if (rowIndex == 0) MaterialTheme.shapes.large else MaterialTheme.shapes.medium,
                                 onClick = { onLaunch(app) },
                                 onLongClick = { onOptions(app) },
                                 onFocused = {
@@ -239,7 +238,6 @@ private fun AppsGrid(
         items(apps, key = { it.key }) { app ->
             AppCard(
                 app = app,
-                cornerRadius = 14.dp,
                 onClick = { onLaunch(app) },
                 onLongClick = { onOptions(app) },
                 onFocused = { onFocusApp(app) },

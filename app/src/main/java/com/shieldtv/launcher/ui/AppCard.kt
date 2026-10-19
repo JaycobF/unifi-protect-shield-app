@@ -1,15 +1,11 @@
 package com.shieldtv.launcher.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -18,9 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,30 +24,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
-import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Glow
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.shieldtv.launcher.data.LauncherApp
 
 /**
- * A 16:9 app tile. Focus lifts and scales it (tvOS) with a coloured glow taken from the
- * app's artwork (Google TV), and a specular sheen sweeps across it like tvOS parallax.
+ * A 16:9 app tile built on the TV Material 3 card: focus scales it up and draws the
+ * scheme's focus ring, and the app's title fades in beneath it.
  */
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun AppCard(
     app: LauncherApp,
@@ -61,12 +49,11 @@ fun AppCard(
     onLongClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 16.dp,
-    focusedScale: Float = 1.1f,
+    shape: Shape = MaterialTheme.shapes.medium,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(cornerRadius)
     val labelAlpha by animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "label")
+    val colors = MaterialTheme.colorScheme
 
     Column(modifier) {
         Card(
@@ -80,19 +67,13 @@ fun AppCard(
                     if (it.isFocused) onFocused()
                 },
             shape = CardDefaults.shape(shape),
-            colors = CardDefaults.colors(containerColor = Color.Transparent),
-            scale = CardDefaults.scale(focusedScale = focusedScale),
+            colors = CardDefaults.colors(containerColor = SurfaceContainers.High),
+            scale = CardDefaults.scale(focusedScale = 1.1f),
             border = CardDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White.copy(alpha = 0.85f)), shape = shape),
-            ),
-            glow = CardDefaults.glow(
-                focusedGlow = Glow(elevationColor = app.accent.copy(alpha = 0.55f), elevation = 20.dp),
+                focusedBorder = Border(BorderStroke(3.dp, colors.border), shape = shape),
             ),
         ) {
-            Box(Modifier.fillMaxSize()) {
-                AppArtwork(app, Modifier.fillMaxSize())
-                Sheen(active = focused, modifier = Modifier.fillMaxSize())
-            }
+            AppArtwork(app, Modifier.fillMaxSize())
         }
         // Title fades in under the focused tile only, keeping rows visually quiet.
         Text(
@@ -101,9 +82,8 @@ fun AppCard(
                 .fillMaxWidth()
                 .padding(top = 14.dp)
                 .alpha(labelAlpha),
-            color = LauncherColors.TextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+            color = colors.onSurface,
+            style = MaterialTheme.typography.titleSmall,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -111,7 +91,10 @@ fun AppCard(
     }
 }
 
-/** App banner, or a generated tile (accent gradient + icon + name) for apps without one. */
+/**
+ * App banner, or for apps without one a tonal tile (the app's colour blended into the
+ * surface container) with its icon and name.
+ */
 @Composable
 fun AppArtwork(app: LauncherApp, modifier: Modifier = Modifier) {
     val banner = app.banner
@@ -124,11 +107,10 @@ fun AppArtwork(app: LauncherApp, modifier: Modifier = Modifier) {
         )
         return
     }
+    val container = lerp(SurfaceContainers.Highest, app.accent, 0.35f)
     Column(
         modifier = modifier.background(
-            Brush.linearGradient(
-                listOf(lerp(app.accent, Color.White, 0.12f), lerp(app.accent, Color.Black, 0.55f)),
-            )
+            Brush.verticalGradient(listOf(container, lerp(container, SurfaceContainers.Low, 0.6f))),
         ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -138,52 +120,16 @@ fun AppArtwork(app: LauncherApp, modifier: Modifier = Modifier) {
             contentDescription = app.label,
             modifier = Modifier
                 .size(44.dp)
-                .clip(RoundedCornerShape(10.dp)),
+                .clip(MaterialTheme.shapes.medium),
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = app.label,
-            color = Color.White,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 10.dp),
-        )
-    }
-}
-
-/** Glassy top highlight plus a one-shot diagonal light sweep when focus lands. */
-@Composable
-private fun Sheen(active: Boolean, modifier: Modifier = Modifier) {
-    val sweep = remember { Animatable(-1f) }
-    val glossAlpha by animateFloatAsState(if (active) 1f else 0f, tween(250), label = "gloss")
-
-    LaunchedEffect(active) {
-        if (active) {
-            sweep.snapTo(-1f)
-            sweep.animateTo(2f, tween(durationMillis = 1100, easing = FastOutSlowInEasing))
-        }
-    }
-
-    Canvas(modifier.alpha(glossAlpha)) {
-        drawRect(
-            Brush.verticalGradient(
-                0f to Color.White.copy(alpha = 0.22f),
-                0.45f to Color.White.copy(alpha = 0.04f),
-                1f to Color.Transparent,
-            )
-        )
-        val x = sweep.value * size.width
-        val band = size.width * 0.35f
-        drawRect(
-            Brush.linearGradient(
-                0f to Color.Transparent,
-                0.5f to Color.White.copy(alpha = 0.18f),
-                1f to Color.Transparent,
-                start = Offset(x - band, 0f),
-                end = Offset(x + band, size.height),
-            )
         )
     }
 }

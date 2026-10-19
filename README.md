@@ -1,7 +1,7 @@
 # Shield Home
 
 A custom home-screen launcher for the NVIDIA Shield TV (and other Android TV / Google TV
-devices) with a look that blends **Google TV** and a touch of **Apple tvOS**.
+devices) with a **Material Design 3** look and a Google TV-style layout.
 
 ![Home](app/screenshots/home.png)
 
@@ -13,13 +13,20 @@ _Screenshots are rendered headlessly with placeholder apps; on a device the tile
 
 ## Design
 
-- **Google TV:** greeting + tab bar across the top, a featured "hero" area for the focused
-  app that collapses as you browse further down, horizontal rows (Favorites / Apps / Games),
-  tabs that switch as soon as they receive focus, and an ambient colour wash that picks up
-  the focused app's artwork colour.
-- **tvOS:** frosted pill tab bar, large rounded 16:9 tiles that lift and scale on focus with a
-  glossy highlight and a light sweep (a nod to tvOS parallax), a "top shelf"-style floating
-  artwork, and a context menu on long-press.
+Built on **Material Design 3** via Compose for TV (`androidx.tv:tv-material`):
+
+- **Colour:** a full M3 dark tonal scheme generated with material-color-utilities
+  (`SchemeTonalSpot`) from the seed `#76B900`, including the surface-container roles.
+  The background picks up a faint wash of the focused app's colour (content-based colour).
+- **Type & shape:** the M3 type scale (display, headline, title, body, label roles) and the
+  M3 shape scale (extra-small 4dp to extra-large 28dp).
+- **Components:** TV Material 3 `TabRow` with the pill indicator, `Card`s with the scheme's
+  focus ring and focus scale, `IconButton`, a tonal label in the hero, and an M3 dialog
+  (extra-large shape, icon + headline) built from `ListItem`s.
+
+The layout still follows Google TV: greeting and tabs across the top (tabs switch when they
+receive focus), a featured area for the focused app that collapses as you browse further
+down, and horizontal rows of 16:9 tiles.
 
 ## Features
 

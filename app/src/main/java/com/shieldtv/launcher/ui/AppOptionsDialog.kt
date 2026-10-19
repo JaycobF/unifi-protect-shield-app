@@ -2,24 +2,20 @@ package com.shieldtv.launcher.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -28,23 +24,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
-import androidx.tv.material3.Surface
+import androidx.tv.material3.ListItem
+import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.shieldtv.launcher.data.LauncherApp
 
 private data class DialogOption(val label: String, val icon: ImageVector, val action: () -> Unit)
 
-/** tvOS-style context menu shown on long-press of an app tile. */
+/** M3 dialog listing actions for an app, shown on long-press of its tile. */
 @Composable
 fun AppOptionsDialog(
     app: LauncherApp,
@@ -58,87 +51,65 @@ fun AppOptionsDialog(
     onAppInfo: () -> Unit,
 ) {
     val options = buildList {
-        add(DialogOption("Open", Icons.Filled.PlayArrow, onOpen))
+        add(DialogOption("Open", Icons.Rounded.PlayArrow, onOpen))
         if (isFavorite) {
-            add(DialogOption("Remove from Favorites", Icons.Filled.FavoriteBorder, onToggleFavorite))
-            if (favoriteIndex > 0) add(DialogOption("Move left", Icons.AutoMirrored.Filled.ArrowBack) { onMove(-1) })
+            add(DialogOption("Remove from Favorites", Icons.Rounded.FavoriteBorder, onToggleFavorite))
+            if (favoriteIndex > 0) add(DialogOption("Move left", Icons.AutoMirrored.Rounded.ArrowBack) { onMove(-1) })
             if (favoriteIndex in 0 until favoriteCount - 1) {
-                add(DialogOption("Move right", Icons.AutoMirrored.Filled.ArrowForward) { onMove(1) })
+                add(DialogOption("Move right", Icons.AutoMirrored.Rounded.ArrowForward) { onMove(1) })
             }
         } else {
-            add(DialogOption("Add to Favorites", Icons.Filled.Favorite, onToggleFavorite))
+            add(DialogOption("Add to Favorites", Icons.Rounded.Favorite, onToggleFavorite))
         }
-        add(DialogOption("App info", Icons.Filled.Info, onAppInfo))
+        add(DialogOption("App info", Icons.Rounded.Info, onAppInfo))
     }
     val firstOption = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { firstOption.requestFocus() } }
+    val colors = MaterialTheme.colorScheme
 
     Dialog(onDismissRequest = onDismiss) {
-        val shape = RoundedCornerShape(28.dp)
         Column(
             Modifier
-                .width(380.dp)
-                .background(Color(0xF21A1D24), shape)
-                .border(1.dp, LauncherColors.GlassBorder, shape)
-                .padding(20.dp),
+                .width(400.dp)
+                .background(SurfaceContainers.High, MaterialTheme.shapes.extraLarge)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    bitmap = app.icon,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    text = app.label,
-                    color = LauncherColors.TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            // M3 dialog anatomy: icon, headline, then content.
+            Image(
+                bitmap = app.icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(MaterialTheme.shapes.medium),
+            )
             Spacer(Modifier.height(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = app.label,
+                color = colors.onSurface,
+                style = MaterialTheme.typography.headlineSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 options.forEachIndexed { index, option ->
-                    OptionRow(
-                        option = option,
-                        modifier = if (index == 0) Modifier.focusRequester(firstOption) else Modifier,
+                    ListItem(
+                        selected = false,
                         onClick = {
                             onDismiss()
                             option.action()
                         },
+                        modifier = if (index == 0) Modifier.focusRequester(firstOption) else Modifier,
+                        headlineContent = { Text(option.label) },
+                        leadingContent = { Icon(option.icon, contentDescription = null, modifier = Modifier.size(ListItemDefaults.IconSize)) },
+                        colors = ListItemDefaults.colors(
+                            containerColor = SurfaceContainers.High,
+                            contentColor = colors.onSurface,
+                        ),
                     )
                 }
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun OptionRow(option: DialogOption, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = LauncherColors.TextPrimary,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color.Black,
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(option.icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(14.dp))
-            Text(option.label, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
