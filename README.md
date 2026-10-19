@@ -70,15 +70,18 @@ Enable **Developer options → Network debugging** on the Shield to use `adb con
 
 ### Making it the default home screen
 
-Shield Home registers as a `HOME` launcher, so it can be picked whenever Android asks which
-home app to use. Recent Shield / Google TV firmware sends the remote's Home button straight to
-the stock launcher, though. Common workarounds:
+Shield Home registers as a `HOME` launcher, but the Shield's remote Home button always opens
+the stock Android TV launcher. Two ways around that:
 
-- Use an app such as **Button Mapper** to remap the Home button to launch Shield Home, or
-- Disable the stock launcher over adb (reversible, at your own risk):
-  `adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx`
-  (re-enable with `pm enable`). On older non-Google-TV Shield builds the stock launcher is
-  `com.google.android.tvlauncher`.
+- **Button Mapper** (Play Store): remap the Home button to open Shield Home. No adb needed.
+- **Disable the stock launcher over adb** (reversible):
+  ```bash
+  adb shell pm disable-user --user 0 com.google.android.tvlauncher
+  # undo:
+  adb shell pm enable com.google.android.tvlauncher
+  ```
+  Android then uses Shield Home as the home screen. (On Google TV devices such as the
+  Chromecast with Google TV, the stock launcher is `com.google.android.apps.tv.launcherx`.)
 
 Shield Home also appears in the regular app list, so it can be opened like any other app.
 
