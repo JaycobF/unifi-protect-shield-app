@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0h320v180h-320z">
+        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0"
+                android:endX="320" android:endY="180"
+                android:startColor="#FF1E6B52" android:endColor="#FF0B0D12" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FF76B900"
+        android:pathData="M40,66h48a8,8 0,0 1,8 8v32a8,8 0,0 1,-8 8h-48a8,8 0,0 1,-8 -8v-32a8,8 0,0 1,8 -8z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M58,78 L76,90 L58,102 Z" />
+    <!-- Wordmark bars as a simple abstract logotype -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M114,78h150a6,6 0,0 1,0 12h-150a6,6 0,0 1,0 -12z" />
+    <path android:fillColor="#99FFFFFF"
+        android:pathData="M114,96h96a4,4 0,0 1,0 8h-96a4,4 0,0 1,0 -8z" />
+</vector>
