@@ -151,16 +151,12 @@ class LauncherScreenshotTest {
     private fun banner(label: String, accent: Color): Bitmap {
         val bmp = Bitmap.createBitmap(640, 360, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
-        val bg = Paint().apply {
-            shader = LinearGradient(
-                0f, 0f, 640f, 360f, accent.toArgb(), android.graphics.Color.BLACK, Shader.TileMode.CLAMP,
-            )
-        }
-        canvas.drawRect(0f, 0f, 640f, 360f, bg)
+        // Flat brand colour and a wordmark, like most real TV banners.
+        canvas.drawColor(accent.toArgb())
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.WHITE
-            textSize = 64f
-            typeface = Typeface.DEFAULT_BOLD
+            textSize = 56f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             textAlign = Paint.Align.CENTER
         }
         canvas.drawText(label, 320f, 200f, text)

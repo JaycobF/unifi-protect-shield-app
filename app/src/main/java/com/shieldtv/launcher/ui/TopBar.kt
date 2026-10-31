@@ -38,15 +38,17 @@ import java.util.Calendar
 
 enum class LauncherTab(val title: String) { Home("Home"), Apps("Apps") }
 
-/** Greeting on the left, M3 pill tab row in the centre, clock + settings on the right. */
+/** Photo caption on the left, M3 pill tab row in the centre, clock + settings on the right. */
 @Composable
 fun TopBar(
     selected: LauncherTab,
     onSelect: (LauncherTab) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Where the current backdrop photo was taken; shown under the greeting. */
+    /** Where the current backdrop photo was taken. */
     location: String = "",
+    /** Imagery credit for the backdrop photo, set under the place name like an atlas caption. */
+    credit: String = "",
 ) {
     val now = rememberNow()
     val context = LocalContext.current
@@ -58,29 +60,38 @@ fun TopBar(
             .fillMaxWidth()
             .padding(start = 56.dp, end = 56.dp, top = 28.dp),
     ) {
-        Column(Modifier.align(Alignment.CenterStart)) {
-            Text(
-                text = greeting(now),
-                color = colors.onSurface,
-                style = type.titleMedium,
-            )
-            if (location.isNotEmpty()) {
+        // Atlas-style caption for the backdrop: place name, then the imagery credit.
+        if (location.isNotEmpty()) {
+            Column(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .widthIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Rounded.Place,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = colors.onSurfaceVariant,
                     )
                     Text(
                         text = location,
-                        modifier = Modifier
-                            .padding(start = 4.dp)
-                            .widthIn(max = 260.dp),
-                        color = colors.onSurfaceVariant,
-                        style = type.labelMedium,
+                        modifier = Modifier.padding(start = 8.dp),
+                        color = colors.onSurface,
+                        style = type.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (credit.isNotEmpty()) {
+                    Text(
+                        text = credit,
+                        // Aligns with the place name, past the pin.
+                        modifier = Modifier.padding(start = 24.dp),
+                        color = colors.onSurfaceVariant,
+                        style = type.labelSmall,
+                        maxLines = 2,
                     )
                 }
             }
@@ -126,7 +137,7 @@ fun TopBar(
                 Text(
                     text = DateFormat.getTimeFormat(context).format(now.time),
                     color = colors.onSurface,
-                    style = type.titleLarge,
+                    style = type.titleLarge.copy(fontFeatureSettings = "tnum"),
                 )
                 Text(
                     text = DateFormat.format("EEE, MMM d", now).toString(),
@@ -161,10 +172,4 @@ private fun rememberNow(): Calendar {
         }
     }
     return now
-}
-
-private fun greeting(now: Calendar): String = when (now.get(Calendar.HOUR_OF_DAY)) {
-    in 5..11 -> "Good morning"
-    in 12..16 -> "Good afternoon"
-    else -> "Good evening"
 }

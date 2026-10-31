@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
@@ -50,6 +49,7 @@ fun AppCard(
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium,
+    showLabel: Boolean = true,
 ) {
     var focused by remember { mutableStateOf(false) }
     val labelAlpha by animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "label")
@@ -76,7 +76,7 @@ fun AppCard(
             AppArtwork(app, Modifier.fillMaxSize())
         }
         // Title fades in under the focused tile only, keeping rows visually quiet.
-        Text(
+        if (showLabel) Text(
             text = app.label,
             modifier = Modifier
                 .fillMaxWidth()
@@ -92,7 +92,7 @@ fun AppCard(
 }
 
 /**
- * App banner, or for apps without one a tonal tile (the app's colour blended into the
+ * App banner, or for apps without one a flat tonal tile (the app's colour blended into the
  * surface container) with its icon and name.
  */
 @Composable
@@ -107,11 +107,8 @@ fun AppArtwork(app: LauncherApp, modifier: Modifier = Modifier) {
         )
         return
     }
-    val container = lerp(surfaceContainers.highest, app.accent, 0.35f)
     Column(
-        modifier = modifier.background(
-            Brush.verticalGradient(listOf(container, lerp(container, surfaceContainers.low, 0.6f))),
-        ),
+        modifier = modifier.background(lerp(surfaceContainers.highest, app.accent, 0.25f)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

@@ -24,26 +24,26 @@ Built on **Material Design 3** via Compose for TV (`androidx.tv:tv-material`):
   Utilities, the same engine Android uses for wallpaper colours: the photo is quantized
   (Celebi), the best source colour is scored, and a `SchemeTonalSpot` scheme is built from it.
   When the photo changes, every colour role fades to the new scheme along with the image.
-  Before any photo has loaded (or with no network) the seed is `#76B900`. The background also
-  picks up a faint wash of the focused app's colour.
+  Before any photo has loaded (or with no network) the seed is `#76B900`.
 - **Type & shape:** the M3 type scale (display, headline, title, body, label roles) and the
   M3 shape scale (extra-small 4dp to extra-large 28dp).
 - **Components:** TV Material 3 `TabRow` with the pill indicator, `Card`s with the scheme's
-  focus ring and focus scale, `IconButton`, a tonal label in the hero, and an M3 dialog
+  focus ring and focus scale, `IconButton`, keycaps for the remote's OK button in the hero, and an M3 dialog
   (extra-large shape, icon + headline) built from `ListItem`s.
 
 **Backdrop:** the background is a photo from **Google Earth View**, Google's stock "Earth"
 wallpaper collection (the same set used by Chrome, Chromecast and Pixel). A new photo is
 loaded each time you return to Home (at most every 2 minutes) and every 15 minutes while
-Home stays open; it sits under an M3 scrim so text stays readable. The place name appears
-under the greeting and the imagery credit in the bottom-right corner. Only photo IDs ship
+Home stays open; it sits under an M3 scrim so text stays readable. The place name and the
+imagery credit sit together in the top-left corner, like an atlas caption. Only photo IDs ship
 with the app (`res/raw/earthview_ids.txt`); images are downloaded from Google's static feed
 when needed, and the most recent one is cached so Home never starts blank. With no network
 the background falls back to the plain M3 surface.
 
-The layout still follows Google TV: greeting and tabs across the top (tabs switch when they
-receive focus), a featured area for the focused app that collapses as you browse further
-down, and horizontal rows of 16:9 tiles.
+The layout still follows Google TV: photo caption and tabs across the top (tabs switch when
+they receive focus), a featured area for the focused app that collapses as you browse further
+down, and horizontal rows of 16:9 tiles. The featured area is text only, so the right side of
+the screen is left to the photo.
 
 ## Features
 

@@ -2,7 +2,6 @@ package com.shieldtv.launcher.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -36,11 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -78,7 +74,6 @@ fun LauncherScreen(
             .background(MaterialTheme.colorScheme.surface)
     ) {
         Backdrop(wallpaper)
-        AmbientBackground(accent = hero?.accent ?: MaterialTheme.colorScheme.primary)
 
         Column(Modifier.fillMaxSize()) {
             TopBar(
@@ -86,6 +81,7 @@ fun LauncherScreen(
                 onSelect = { tab = it },
                 onOpenSettings = onOpenSettings,
                 location = wallpaper?.location.orEmpty(),
+                credit = wallpaper?.attribution?.takeIf { it.isNotEmpty() }?.let { "Google Earth  ·  $it" }.orEmpty(),
             )
 
             when (tab) {
@@ -103,20 +99,6 @@ fun LauncherScreen(
                     onOptions = { optionsFor = it },
                 )
             }
-        }
-
-        wallpaper?.attribution?.takeIf { it.isNotEmpty() }?.let {
-            Text(
-                text = "Google Earth  ·  $it",
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = EdgePadding, bottom = 12.dp)
-                    .widthIn(max = 560.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.End,
-                maxLines = 2,
-            )
         }
     }
 
@@ -157,8 +139,8 @@ private fun Backdrop(wallpaper: Wallpaper?) {
     Canvas(Modifier.fillMaxSize()) {
         drawRect(
             Brush.verticalGradient(
-                0f to surface.copy(alpha = 0.45f),
-                0.4f to surface.copy(alpha = 0.6f),
+                0f to surface.copy(alpha = 0.3f),
+                0.35f to surface.copy(alpha = 0.45f),
                 0.65f to surface.copy(alpha = 0.85f),
                 1f to surface.copy(alpha = 0.95f),
             )
@@ -167,31 +149,6 @@ private fun Backdrop(wallpaper: Wallpaper?) {
             Brush.horizontalGradient(
                 0f to surface.copy(alpha = 0.55f),
                 0.55f to Color.Transparent,
-            )
-        )
-    }
-}
-
-/** Subtle colour wash from the top right, tinted by the focused app (content-based colour, M3 style). */
-@Composable
-private fun AmbientBackground(accent: Color) {
-    val color by animateColorAsState(accent, tween(700), label = "ambient")
-    Canvas(Modifier.fillMaxSize()) {
-        drawRect(
-            Brush.radialGradient(
-                0f to color.copy(alpha = 0.22f),
-                0.55f to color.copy(alpha = 0.06f),
-                1f to Color.Transparent,
-                center = Offset(size.width * 0.85f, size.height * 0.05f),
-                radius = size.width * 0.75f,
-            )
-        )
-        drawRect(
-            Brush.radialGradient(
-                0f to color.copy(alpha = 0.05f),
-                1f to Color.Transparent,
-                center = Offset(0f, size.height),
-                radius = size.width * 0.5f,
             )
         )
     }
@@ -251,12 +208,12 @@ private fun HomeContent(
                 Column(Modifier.fillMaxWidth()) {
                     Text(
                         text = row.title,
-                        modifier = Modifier.padding(start = EdgePadding, top = 8.dp),
+                        modifier = Modifier.padding(start = EdgePadding, top = 16.dp),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleLarge,
                     )
                     LazyRow(
-                        // Vertical padding leaves room for the focused card's scale + glow.
+                        // Vertical padding leaves room for the focused card's scale and focus ring.
                         contentPadding = PaddingValues(horizontal = EdgePadding, vertical = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
@@ -270,6 +227,8 @@ private fun HomeContent(
                                         else Modifier
                                     ),
                                 shape = if (rowIndex == 0) MaterialTheme.shapes.large else MaterialTheme.shapes.medium,
+                                // The hero already names the focused app on Home.
+                                showLabel = false,
                                 onClick = { onLaunch(app) },
                                 onLongClick = { onOptions(app) },
                                 onFocused = {

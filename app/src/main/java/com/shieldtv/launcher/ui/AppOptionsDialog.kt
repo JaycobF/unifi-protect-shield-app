@@ -14,7 +14,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,15 +53,15 @@ fun AppOptionsDialog(
     val options = buildList {
         add(DialogOption("Open", Icons.Rounded.PlayArrow, onOpen))
         if (isFavorite) {
-            add(DialogOption("Remove from Favorites", Icons.Rounded.FavoriteBorder, onToggleFavorite))
+            add(DialogOption("Remove from favorites", Icons.Rounded.FavoriteBorder, onToggleFavorite))
             if (favoriteIndex > 0) add(DialogOption("Move left", Icons.AutoMirrored.Rounded.ArrowBack) { onMove(-1) })
             if (favoriteIndex in 0 until favoriteCount - 1) {
                 add(DialogOption("Move right", Icons.AutoMirrored.Rounded.ArrowForward) { onMove(1) })
             }
         } else {
-            add(DialogOption("Add to Favorites", Icons.Rounded.Favorite, onToggleFavorite))
+            add(DialogOption("Add to favorites", Icons.Rounded.Favorite, onToggleFavorite))
         }
-        add(DialogOption("App info", Icons.Rounded.Info, onAppInfo))
+        add(DialogOption("App info", Icons.Outlined.Info, onAppInfo))
     }
     val firstOption = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { firstOption.requestFocus() } }
