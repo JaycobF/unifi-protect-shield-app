@@ -2,6 +2,7 @@ name: Build DV Converter
 
 on:
   push:
+    branches: ["**"]
     paths:
       - "dv-converter/**"
       - ".github/workflows/build-dv-converter.yml"
@@ -94,8 +95,16 @@ jobs:
           path: dv-converter/${{ env.INSTALLER }}
           if-no-files-found: error
 
-      - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Publish release
+        if: github.event_name == 'push'
         run: |
-          gh release upload "$GITHUB_REF_NAME" "$INSTALLER" --clobber --repo "$GITHUB_REPOSITORY" \
-            || gh release create "$GITHUB_REF_NAME" "$INSTALLER" --title "DV Converter ${GITHUB_REF_NAME#dv-converter-v}" --repo "$GITHUB_REPOSITORY"
+          # Tag pushes publish to that tag; branch pushes publish to dv-converter-v<version>,
+          # creating the tag at this commit the first time that version is built.
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="$GITHUB_REF_NAME"; else tag="dv-converter-v$VERSION"; fi
+          notes="Windows: run DV-Converter-Setup-${VERSION}.exe. macOS (Apple silicon): open DV-Converter-${VERSION}.dmg and drag DV Converter to Applications. See dv-converter/README.md for the tools each platform needs."
+          # Both platform jobs reach this step; whichever is first creates the release.
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+                 --title "DV Converter $VERSION" --notes "$notes" \
+            || sleep 5
+          gh release upload "$tag" "$INSTALLER" --clobber --repo "$GITHUB_REPOSITORY"
