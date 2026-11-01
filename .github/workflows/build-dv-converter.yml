@@ -1,0 +1,85 @@
+name: Build DV Converter
+
+on:
+  push:
+    paths:
+      - "dv-converter/**"
+      - ".github/workflows/build-dv-converter.yml"
+    tags: ["dv-converter-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # attach builds to a release when a tag is pushed
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+          - os: macos-latest
+            label: macOS-AppleSilicon
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: dv-converter
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Bundle dovi_tool
+        run: |
+          mkdir -p bin dl
+          if [ "$RUNNER_OS" = "Windows" ]; then pattern='*x86_64-pc-windows-msvc*'; else pattern='*macOS*'; fi
+          gh release download --repo quietvoid/dovi_tool --pattern "$pattern" --dir dl
+          for f in dl/*; do
+            case "$f" in
+              *.zip) python -m zipfile -e "$f" dl/x ;;
+              *.tar.gz) python -m tarfile -e "$f" dl/x ;;
+            esac
+          done
+          find dl/x -type f \( -name dovi_tool -o -name dovi_tool.exe \) -exec cp {} bin/ \;
+          chmod +x bin/* || true
+          ls -la bin
+          test -n "$(ls bin)"
+
+      - name: Bundle ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          gh release download latest --repo BtbN/FFmpeg-Builds --pattern 'ffmpeg-master-latest-win64-gpl.zip' --dir dl
+          python -m zipfile -e dl/ffmpeg-master-latest-win64-gpl.zip dl/ff
+          cp dl/ff/*/bin/ffmpeg.exe dl/ff/*/bin/ffprobe.exe bin/
+          ls -la bin
+
+      - name: Build app
+        run: python -m PyInstaller --noconfirm dv_converter.spec
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "dist/DV Converter" -DestinationPath "DV-Converter-${{ matrix.label }}.zip"
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --keepParent "dist/DV Converter.app" "DV-Converter-${{ matrix.label }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DV-Converter-${{ matrix.label }}
+          path: dv-converter/DV-Converter-${{ matrix.label }}.zip
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: gh release upload "${GITHUB_REF_NAME}" "DV-Converter-${{ matrix.label }}.zip" --clobber --repo "${{ github.repository }}" || gh release create "${GITHUB_REF_NAME}" "DV-Converter-${{ matrix.label }}.zip" --title "DV Converter ${GITHUB_REF_NAME#dv-converter-v}" --repo "${{ github.repository }}"
