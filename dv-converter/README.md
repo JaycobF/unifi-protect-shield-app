@@ -8,6 +8,22 @@ Drop files into the window and click **Convert**. Each file is saved next to the
 original as `Name.P8.mkv`, or in a folder you choose. Audio, subtitles and
 chapters are copied unchanged.
 
+## Keeping Profile 7 in the same file
+
+Tick **Keep Profile 7 in the same file** before converting to get one file
+(`Name.P8+P7.mkv`) with two video tracks:
+
+1. **Dolby Vision Profile 8.1**: the default track. The Shield, Apple TV, Fire TV,
+   Plex, Infuse and most TVs play this one.
+2. **Dolby Vision Profile 7**: the original, untouched video with its
+   enhancement layer. Players that support Profile 7 (Kodi on CoreELEC, for
+   example) can switch to it in their video-track menu. Players that can't
+   switch video tracks ignore it.
+
+The file is almost twice the size of a Profile 8.1-only file, because it holds
+both full video streams. From the command line, use
+`python -m dvconvert.cli --keep-p7 Movie.mkv`.
+
 ## Install
 
 Installers come from the **Build DV Converter** workflow on GitHub Actions:

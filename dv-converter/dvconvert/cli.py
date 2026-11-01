@@ -13,6 +13,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Convert Dolby Vision Profile 7 to Profile 8.1")
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path, nargs="?")
+    parser.add_argument("--keep-p7", action="store_true",
+                        help="also keep the original Profile 7 video as a second track")
     args = parser.parse_args(argv)
 
     tools = find_all()
@@ -21,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Missing tools: {', '.join(missing)}", file=sys.stderr)
         return 1
 
-    dst = args.output or default_output_path(args.input)
+    dst = args.output or default_output_path(args.input, keep_original=args.keep_p7)
     last = [-1]
 
     def progress(fraction: float) -> None:
@@ -30,7 +32,8 @@ def main(argv: list[str] | None = None) -> int:
             last[0] = pct
             print(f"\r{pct:3d}%", end="", flush=True)
 
-    converter = Converter(tools, log=lambda m: print(f"\r{m}"), progress=progress)
+    converter = Converter(tools, log=lambda m: print(f"\r{m}"), progress=progress,
+                          keep_original=args.keep_p7)
     try:
         info = probe(tools["ffprobe"], args.input)
         print(f"{args.input.name}: {info.description}")

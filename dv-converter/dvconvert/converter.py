@@ -51,6 +51,7 @@ class ProbeResult:
     height: int | None
     frame_rate: str | None
     duration: float | None
+    track_profiles: tuple[int | None, ...] = ()  # Dolby Vision profile of every HEVC track
 
     @property
     def description(self) -> str:
@@ -77,6 +78,8 @@ class ProbeResult:
             return "This file has no HEVC video track."
         if self.dv_profile is None:
             return "This file has no Dolby Vision metadata."
+        if self.dv_profile == 8 and 7 in self.track_profiles:
+            return "This file already has both a Profile 8.1 and a Profile 7 video track."
         if self.dv_profile == 8:
             return "This file is already Dolby Vision Profile 8."
         if self.dv_profile != 7:
@@ -111,18 +114,19 @@ def probe(ffprobe: str, path: str | Path) -> ProbeResult:
             and not s.get("disposition", {}).get("attached_pic")]
     video = hevc[0] if hevc else None
 
-    dovi = {}
-    if video:
-        for sd in video.get("side_data_list", []):
+    def _dovi(stream) -> dict:
+        for sd in stream.get("side_data_list", []):
             if "DOVI" in sd.get("side_data_type", ""):
-                dovi = sd
-                break
+                return sd
+        return {}
 
     def _num(value, kind=float):
         try:
             return kind(value)
         except (TypeError, ValueError):
             return None
+
+    dovi = _dovi(video) if video else {}
 
     duration = _num(data.get("format", {}).get("duration"))
 
@@ -145,16 +149,18 @@ def probe(ffprobe: str, path: str | Path) -> ProbeResult:
         height=_num(video.get("height"), int) if video else None,
         frame_rate=rate,
         duration=duration,
+        track_profiles=tuple(_num(_dovi(s).get("dv_profile"), int) for s in hevc),
     )
 
 
-def default_output_path(src: Path, out_dir: Path | None = None) -> Path:
-    """``Movie.mkv`` -> ``Movie.P8.mkv``, numbered if that name is taken."""
+def default_output_path(src: Path, out_dir: Path | None = None, keep_original: bool = False) -> Path:
+    """``Movie.mkv`` -> ``Movie.P8.mkv`` (or ``Movie.P8+P7.mkv``), numbered if that name is taken."""
     folder = out_dir or src.parent
-    candidate = folder / f"{src.stem}.P8.mkv"
+    tag = "P8+P7" if keep_original else "P8"
+    candidate = folder / f"{src.stem}.{tag}.mkv"
     n = 2
     while candidate.exists():
-        candidate = folder / f"{src.stem}.P8 ({n}).mkv"
+        candidate = folder / f"{src.stem}.{tag} ({n}).mkv"
         n += 1
     return candidate
 
@@ -186,8 +192,10 @@ class Converter:
     EXTRACT_SHARE = 0.75  # share of the progress bar spent on step 1
 
     def __init__(self, tools: dict[str, str], log: LogFn | None = None,
-                 progress: ProgressFn | None = None):
+                 progress: ProgressFn | None = None, keep_original: bool = False):
         self.tools = tools
+        # Also copy the untouched Profile 7 video into the output as a second video track.
+        self.keep_original = keep_original
         self._log = log or (lambda _msg: None)
         self._progress = progress or (lambda _f: None)
         self._cancel = threading.Event()
@@ -228,7 +236,8 @@ class Converter:
             raise ConversionError("The output file can't be the same as the input file.")
 
         dst.parent.mkdir(parents=True, exist_ok=True)
-        needed = src.stat().st_size * 2.05  # temporary video stream + final file
+        # temporary video stream + final file (which also holds the original video when kept)
+        needed = src.stat().st_size * (2.95 if self.keep_original else 2.05)
         free = shutil.disk_usage(dst.parent).free
         if free < needed:
             raise ConversionError(
@@ -310,7 +319,13 @@ class Converter:
         cmd = [self.tools["mkvmerge"], "-o", str(out)]
         if info.frame_rate:
             cmd += ["--default-duration", f"0:{info.frame_rate}p"]
-        cmd += [str(video), "--no-video", str(src)]
+        cmd += ["--track-name", "0:Dolby Vision Profile 8.1", "--default-track-flag", "0:yes", str(video)]
+        if self.keep_original:
+            vid = self._source_video_track(src)
+            cmd += ["--video-tracks", str(vid), "--track-name", f"{vid}:Dolby Vision Profile 7",
+                    "--default-track-flag", f"{vid}:no", str(src)]
+        else:
+            cmd += ["--no-video", str(src)]
 
         proc = self._spawn(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         messages: deque[str] = deque(maxlen=30)
@@ -328,12 +343,31 @@ class Converter:
         if code >= 2:  # 1 means "finished with warnings"
             raise ConversionError(f"mkvmerge failed (exit code {code}). See the log for details.")
 
+    def _source_video_track(self, src: Path) -> int:
+        """mkvmerge's track ID for the source's HEVC video track."""
+        proc = _run([self.tools["mkvmerge"], "-J", str(src)])
+        try:
+            tracks = json.loads(proc.stdout or b"{}").get("tracks", [])
+        except json.JSONDecodeError:
+            tracks = []
+        for track in tracks:
+            codec = f"{track.get('codec', '')} {track.get('properties', {}).get('codec_id', '')}"
+            if track.get("type") == "video" and ("HEVC" in codec or "H.265" in codec):
+                return int(track["id"])
+        raise ConversionError("mkvmerge couldn't find the original video track to keep.")
+
     def _verify(self, path: Path) -> bool:
         self._log("Step 3 of 3: checking the result")
         try:
             result = probe(self.tools["ffprobe"], path)
         except ConversionError as exc:
             self._log(f"  Couldn't check the result: {exc}")
+            return False
+        if self.keep_original and result.dv_profile == 8:
+            if 7 in result.track_profiles[1:]:
+                self._log(f"  Verified: {result.description} (default) + Dolby Vision Profile 7")
+                return True
+            self._log("  Warning: the Profile 7 track isn't tagged as Dolby Vision in the output.")
             return False
         if result.dv_profile == 8:
             self._log(f"  Verified: {result.description}")

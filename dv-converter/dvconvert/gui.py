@@ -13,7 +13,7 @@ from PySide6.QtGui import (
     QColor, QDesktopServices, QFontDatabase, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget,
+    QApplication, QCheckBox, QDialog, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
     QSizePolicy, QStackedWidget, QToolButton, QVBoxLayout, QWidget,
 )
@@ -94,6 +94,11 @@ QPlainTextEdit {{
     color: #B9BFCC; selection-background-color: #4A4130;
 }}
 #footer {{ background: {SURFACE}; border-top: 1px solid {LINE}; }}
+QCheckBox {{ color: {TEXT}; spacing: 8px; background: transparent; }}
+QCheckBox::indicator {{ width: 16px; height: 16px; border: 1px solid #4A5060; border-radius: 4px; background: {RAISED}; }}
+QCheckBox::indicator:hover {{ border-color: {AMBER}; }}
+QCheckBox::indicator:checked {{ background: {AMBER}; border-color: {AMBER}; }}
+QCheckBox:disabled {{ color: #5A6070; }}
 #outputPath {{ color: {TEXT}; }}
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
 QScrollBar::handle:vertical {{ background: {LINE}; border-radius: 4px; min-height: 30px; }}
@@ -264,6 +269,8 @@ class FileRow(QFrame):
 
         labels = {CHECKING: "Checking…", READY: "Ready", RUNNING: f"{int(item.progress * 100)}%",
                   DONE: "Profile 8.1", FAILED: "Failed", CANCELLED: "Cancelled"}
+        if item.state == DONE and item.output and ".P8+P7" in item.output.name:
+            labels[DONE] = "8.1 + 7"
         if item.state == UNSUPPORTED:
             labels[UNSUPPORTED] = "Already 8" if (item.info and item.info.dv_profile == 8) else "Can't convert"
         self.chip.setText(labels[item.state])
@@ -408,7 +415,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(APP_NAME)
         self.resize(880, 640)
-        self.setMinimumSize(640, 480)
+        self.setMinimumSize(780, 480)
         self.setAcceptDrops(True)
 
         self.settings = QSettings("DVConverter", "DV Converter")
@@ -421,6 +428,7 @@ class MainWindow(QMainWindow):
         self.tools: dict[str, str | None] = {}
         out = self.settings.value("output_dir", "")
         self.output_dir: Path | None = Path(out) if out and Path(out).is_dir() else None
+        self.keep_original = self.settings.value("keep_original", False, type=bool)
 
         self.bridge = Bridge()
         self.bridge.probed.connect(self._on_probed)
@@ -522,6 +530,13 @@ class MainWindow(QMainWindow):
         self.reset_output = QPushButton("Use source folder")
         self.reset_output.setObjectName("link")
         self.reset_output.clicked.connect(self._reset_output)
+        self.keep_box = QCheckBox("Keep Profile 7 in the same file")
+        self.keep_box.setChecked(self.keep_original)
+        self.keep_box.setToolTip(
+            "Adds the original Profile 7 video as a second video track. Profile 8.1 stays the\n"
+            "default track, so the Shield and most players play it; players that support\n"
+            "Profile 7 can switch to the other video track. The file is almost twice as big.")
+        self.keep_box.toggled.connect(self._set_keep_original)
         self.log_toggle = QPushButton("Show log")
         self.log_toggle.setObjectName("link")
         self.log_toggle.clicked.connect(self._toggle_log)
@@ -529,6 +544,9 @@ class MainWindow(QMainWindow):
         self.convert_button.setObjectName("primary")
         self.convert_button.setCursor(Qt.PointingHandCursor)
         self.convert_button.clicked.connect(self._convert_or_stop)
+        self.convert_button.setMinimumWidth(130)
+        for fixed in (self.convert_button, self.keep_box, self.log_toggle):
+            fixed.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         footer = QFrame()
         footer.setObjectName("footer")
@@ -540,6 +558,8 @@ class MainWindow(QMainWindow):
         fl.addWidget(change)
         fl.addWidget(self.reset_output)
         fl.addSpacing(12)
+        fl.addWidget(self.keep_box)
+        fl.addSpacing(4)
         fl.addWidget(self.log_toggle)
         fl.addWidget(self.convert_button)
 
@@ -579,6 +599,7 @@ class MainWindow(QMainWindow):
             self.output_label.setToolTip("")
         self.output_label.update()
         self.reset_output.setVisible(self.output_dir is not None)
+        self.keep_box.setEnabled(not self.busy)
 
         for item in items:
             if item.row:
@@ -709,6 +730,10 @@ class MainWindow(QMainWindow):
         self.settings.setValue("output_dir", "")
         self._refresh()
 
+    def _set_keep_original(self, checked: bool) -> None:
+        self.keep_original = checked
+        self.settings.setValue("keep_original", checked)
+
     def _toggle_log(self) -> None:
         visible = not self.log_view.isVisible()
         self.log_view.setVisible(visible)
@@ -740,20 +765,23 @@ class MainWindow(QMainWindow):
         self._refresh()
         tools = dict(self.tools)
         out_dir = self.output_dir
-        self.worker = threading.Thread(target=self._run_queue, args=(queue, tools, out_dir), daemon=True)
+        self.worker = threading.Thread(target=self._run_queue, args=(queue, tools, out_dir, self.keep_original),
+                                       daemon=True)
         self.worker.start()
 
-    def _run_queue(self, queue: list[QueueItem], tools: dict[str, str], out_dir: Path | None) -> None:
+    def _run_queue(self, queue: list[QueueItem], tools: dict[str, str], out_dir: Path | None,
+                   keep_original: bool) -> None:
         """Worker thread: converts each queued item in turn."""
         for item in queue:
             if self.stop_requested:
                 break
-            dst = default_output_path(item.path, out_dir)
+            dst = default_output_path(item.path, out_dir, keep_original)
             self.bridge.progress.emit(item.id, 0.0)
             self.bridge.log.emit(f"\n▶ {item.path.name}")
             self.converter = Converter(
                 tools, log=self.bridge.log.emit,
-                progress=lambda f, i=item.id: self.bridge.progress.emit(i, f))
+                progress=lambda f, i=item.id: self.bridge.progress.emit(i, f),
+                keep_original=keep_original)
             try:
                 verified = self.converter.run(item.path, dst, item.info)
                 note = "" if verified else "Converted, but the Profile 8 tag couldn't be confirmed."
