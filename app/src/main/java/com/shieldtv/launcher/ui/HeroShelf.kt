@@ -11,7 +11,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,8 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -35,34 +32,27 @@ val HeroExpandedHeight = 200.dp
 
 /**
  * Featured area for the focused app: icon, display title and remote hints on the left,
- * leaving the right side open so the backdrop photo shows through. Collapses to
- * [height] = 0 while browsing lower rows.
+ * leaving the right side open so the backdrop photo shows through. It is the first item of
+ * the Home list, so it collapses by scrolling away rather than by animating its height.
  */
 @Composable
-fun HeroShelf(app: LauncherApp, height: Dp, horizontalPadding: Dp, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .clipToBounds()
-            .graphicsLayer { alpha = (height / HeroExpandedHeight).coerceIn(0f, 1f) },
-    ) {
-        AnimatedContent(
-            targetState = app,
-            contentKey = { it.key },
-            transitionSpec = {
-                (fadeIn(tween(350)) + slideInHorizontally(tween(350)) { it / 24 }) togetherWith fadeOut(tween(150)) using SizeTransform(clip = false)
-            },
-            label = "hero",
-        ) { current ->
-            HeroText(
-                current,
-                Modifier
-                    .fillMaxWidth()
-                    .height(HeroExpandedHeight)
-                    .padding(horizontal = horizontalPadding, vertical = 20.dp),
-            )
-        }
+fun HeroShelf(app: LauncherApp, horizontalPadding: Dp, modifier: Modifier = Modifier) {
+    AnimatedContent(
+        targetState = app,
+        contentKey = { it.key },
+        transitionSpec = {
+            (fadeIn(tween(250)) + slideInHorizontally(tween(250)) { it / 24 }) togetherWith fadeOut(tween(120)) using SizeTransform(clip = false)
+        },
+        modifier = modifier.fillMaxWidth(),
+        label = "hero",
+    ) { current ->
+        HeroText(
+            current,
+            Modifier
+                .fillMaxWidth()
+                .height(HeroExpandedHeight)
+                .padding(horizontal = horizontalPadding, vertical = 20.dp),
+        )
     }
 }
 

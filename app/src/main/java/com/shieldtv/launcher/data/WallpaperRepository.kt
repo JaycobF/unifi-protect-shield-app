@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.materialkolor.quantize.QuantizerCelebi
@@ -17,6 +18,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+@Immutable
 data class Wallpaper(
     val image: ImageBitmap,
     /** Short place name, e.g. "Marble Canyon, United States". May be empty. */

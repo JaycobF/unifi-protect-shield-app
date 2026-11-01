@@ -2,7 +2,6 @@ package com.shieldtv.launcher.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -13,14 +12,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +38,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,6 +47,7 @@ import androidx.tv.material3.Text
 import com.shieldtv.launcher.LauncherState
 import com.shieldtv.launcher.data.LauncherApp
 import com.shieldtv.launcher.data.Wallpaper
+import kotlinx.coroutines.delay
 
 private val EdgePadding = 56.dp
 
@@ -63,7 +67,14 @@ fun LauncherScreen(
     var tab by rememberSaveable { mutableStateOf(initialTab) }
     var featured by remember { mutableStateOf<LauncherApp?>(null) }
     var optionsFor by remember { mutableStateOf<LauncherApp?>(null) }
-    val hero = featured ?: state.favorites.firstOrNull() ?: state.allApps.firstOrNull()
+    val heroTarget = featured ?: state.favorites.firstOrNull() ?: state.allApps.firstOrNull()
+    // Let focus settle before swapping the hero, so holding the D-pad doesn't rebuild and
+    // animate the hero text on every key repeat.
+    var hero by remember { mutableStateOf(heroTarget) }
+    LaunchedEffect(heroTarget) {
+        if (hero != null) delay(HERO_SETTLE_MS)
+        hero = heroTarget
+    }
 
     // A launcher never exits on Back; it just returns to the Home tab.
     BackHandler { tab = LauncherTab.Home }
@@ -125,32 +136,35 @@ fun LauncherScreen(
 @Composable
 private fun Backdrop(wallpaper: Wallpaper?) {
     val surface = MaterialTheme.colorScheme.surface
-    Crossfade(targetState = wallpaper, animationSpec = tween(1500), label = "wallpaper") { current ->
-        if (current != null) {
-            Image(
-                bitmap = current.image,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+    // Own render layer: focus changes in the rows above don't re-record the full-screen
+    // photo and scrim gradients.
+    Box(Modifier.fillMaxSize().graphicsLayer()) {
+        Crossfade(targetState = wallpaper, animationSpec = tween(1500), label = "wallpaper") { current ->
+            if (current != null) {
+                Image(
+                    bitmap = current.image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        if (wallpaper != null) Canvas(Modifier.fillMaxSize()) {
+            drawRect(
+                Brush.verticalGradient(
+                    0f to surface.copy(alpha = 0.3f),
+                    0.35f to surface.copy(alpha = 0.45f),
+                    0.65f to surface.copy(alpha = 0.85f),
+                    1f to surface.copy(alpha = 0.95f),
+                )
+            )
+            drawRect(
+                Brush.horizontalGradient(
+                    0f to surface.copy(alpha = 0.55f),
+                    0.55f to Color.Transparent,
+                )
             )
         }
-    }
-    if (wallpaper == null) return
-    Canvas(Modifier.fillMaxSize()) {
-        drawRect(
-            Brush.verticalGradient(
-                0f to surface.copy(alpha = 0.3f),
-                0.35f to surface.copy(alpha = 0.45f),
-                0.65f to surface.copy(alpha = 0.85f),
-                1f to surface.copy(alpha = 0.95f),
-            )
-        )
-        drawRect(
-            Brush.horizontalGradient(
-                0f to surface.copy(alpha = 0.55f),
-                0.55f to Color.Transparent,
-            )
-        )
     }
 }
 
@@ -168,9 +182,14 @@ private fun HomeContent(
         HomeRow("Games", state.games, cardWidth = 196.dp),
     ).filter { it.apps.isNotEmpty() }
 
-    // Like Google TV, the featured area collapses once you browse below the first row.
+    // Like Google TV, the featured area scrolls away once you browse below the first row.
+    // List items: the hero (index 0), then one item per row, so row r is item r + 1.
     var focusedRow by remember { mutableIntStateOf(0) }
-    val heroHeight by animateDpAsState(if (focusedRow == 0) HeroExpandedHeight else 0.dp, tween(350), label = "hero")
+    val listState = rememberLazyListState()
+    LaunchedEffect(focusedRow) {
+        // Row 0 shows the hero above it; deeper rows keep the previous row peeking above.
+        listState.animateScrollToItem(index = focusedRow, scrollOffset = 0)
+    }
 
     val firstCard = remember { FocusRequester() }
     var initialFocusDone by rememberSaveable { mutableStateOf(false) }
@@ -186,63 +205,76 @@ private fun HomeContent(
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        if (hero != null) {
-            HeroShelf(app = hero, height = heroHeight, horizontalPadding = EdgePadding)
-        }
+    if (state.loaded && rows.isEmpty()) {
+        Text(
+            "No apps found",
+            modifier = Modifier.padding(EdgePadding),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
 
-        if (state.loaded && rows.isEmpty()) {
-            Text(
-                "No apps found",
-                modifier = Modifier.padding(EdgePadding),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 48.dp),
+    ) {
+        item(key = "hero") {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(HeroExpandedHeight)
+                    // Fade with scroll position, read in the draw phase only.
+                    .graphicsLayer { alpha = heroAlpha(listState, size.height) },
+            ) {
+                if (hero != null) HeroShelf(app = hero, horizontalPadding = EdgePadding)
+            }
         }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 48.dp),
-        ) {
-            itemsIndexed(rows, key = { _, row -> row.title }) { rowIndex, row ->
-                Column(Modifier.fillMaxWidth()) {
-                    Text(
-                        text = row.title,
-                        modifier = Modifier.padding(start = EdgePadding, top = 16.dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    LazyRow(
-                        // Vertical padding leaves room for the focused card's scale and focus ring.
-                        contentPadding = PaddingValues(horizontal = EdgePadding, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    ) {
-                        itemsIndexed(row.apps, key = { _, app -> app.key }) { index, app ->
-                            AppCard(
-                                app = app,
-                                modifier = Modifier
-                                    .width(row.cardWidth)
-                                    .then(
-                                        if (rowIndex == 0 && index == 0) Modifier.focusRequester(firstCard)
-                                        else Modifier
-                                    ),
-                                shape = if (rowIndex == 0) MaterialTheme.shapes.large else MaterialTheme.shapes.medium,
-                                // The hero already names the focused app on Home.
-                                showLabel = false,
-                                onClick = { onLaunch(app) },
-                                onLongClick = { onOptions(app) },
-                                onFocused = {
-                                    focusedRow = rowIndex
-                                    onFocusApp(app)
-                                },
-                            )
-                        }
+        itemsIndexed(rows, key = { _, row -> row.title }) { rowIndex, row ->
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    text = row.title,
+                    modifier = Modifier.padding(start = EdgePadding, top = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                LazyRow(
+                    // Vertical padding leaves room for the focused card's scale and focus ring.
+                    contentPadding = PaddingValues(horizontal = EdgePadding, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    itemsIndexed(row.apps, key = { _, app -> app.key }) { index, app ->
+                        AppCard(
+                            app = app,
+                            modifier = Modifier
+                                .width(row.cardWidth)
+                                .then(
+                                    if (rowIndex == 0 && index == 0) Modifier.focusRequester(firstCard)
+                                    else Modifier
+                                ),
+                            shape = if (rowIndex == 0) MaterialTheme.shapes.large else MaterialTheme.shapes.medium,
+                            // The hero already names the focused app on Home.
+                            showLabel = false,
+                            onClick = { onLaunch(app) },
+                            onLongClick = { onOptions(app) },
+                            onFocused = {
+                                focusedRow = rowIndex
+                                onFocusApp(app)
+                            },
+                        )
                     }
                 }
             }
         }
     }
 }
+
+private fun heroAlpha(listState: LazyListState, heroHeightPx: Float): Float {
+    if (listState.firstVisibleItemIndex > 0 || heroHeightPx <= 0f) return 0f
+    return (1f - listState.firstVisibleItemScrollOffset / heroHeightPx).coerceIn(0f, 1f)
+}
+
+private const val HERO_SETTLE_MS = 90L
 
 @Composable
 private fun AppsGrid(

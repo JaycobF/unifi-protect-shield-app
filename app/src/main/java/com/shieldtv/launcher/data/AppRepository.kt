@@ -8,14 +8,19 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+/** Immutable: bitmaps are never mutated after loading, so Compose can skip unchanged tiles. */
+@Immutable
 data class LauncherApp(
     val packageName: String,
     val component: ComponentName,
@@ -38,7 +43,16 @@ class AppRepository(private val context: Context) {
 
     private val pm: PackageManager = context.packageManager
 
-    suspend fun loadApps(): List<LauncherApp> = withContext(Dispatchers.IO) {
+    /**
+     * Apps already loaded, keyed by component, with the package's lastUpdateTime. Reusing these
+     * instances means returning to Home doesn't re-decode artwork or redraw unchanged tiles.
+     */
+    private val cache = HashMap<String, Pair<Long, LauncherApp>>()
+    private val loadLock = Mutex()
+
+    suspend fun loadApps(): List<LauncherApp> = loadLock.withLock { withContext(Dispatchers.IO) { queryApps() } }
+
+    private fun queryApps(): List<LauncherApp> {
         // TV apps first so their LEANBACK activity wins over a phone LAUNCHER one.
         val resolved = LinkedHashMap<String, ResolveInfo>()
         for (category in listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)) {
@@ -49,9 +63,19 @@ class AppRepository(private val context: Context) {
         }
         resolved.remove(context.packageName)
 
-        resolved.values
-            .mapNotNull { runCatching { toLauncherApp(it) }.getOrNull() }
+        val apps = resolved.values
+            .mapNotNull { runCatching { cachedOrLoad(it) }.getOrNull() }
             .sortedBy { it.label.lowercase() }
+        cache.keys.retainAll(apps.mapTo(HashSet()) { it.key })
+        return apps
+    }
+
+    private fun cachedOrLoad(info: ResolveInfo): LauncherApp {
+        val activity = info.activityInfo
+        val key = ComponentName(activity.packageName, activity.name).flattenToShortString()
+        val updatedAt = pm.getPackageInfo(activity.packageName, 0).lastUpdateTime
+        cache[key]?.let { (cachedAt, app) -> if (cachedAt == updatedAt) return app }
+        return toLauncherApp(info).also { cache[key] = updatedAt to it }
     }
 
     private fun toLauncherApp(info: ResolveInfo): LauncherApp {

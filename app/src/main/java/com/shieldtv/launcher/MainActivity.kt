@@ -72,6 +72,11 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        viewModel.onUserInteraction()
+    }
+
     private fun launch(app: LauncherApp) = startSafely(app.launchIntent())
 
     private fun openAppInfo(app: LauncherApp) = startSafely(

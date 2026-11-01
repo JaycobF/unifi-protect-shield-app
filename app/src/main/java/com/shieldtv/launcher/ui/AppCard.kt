@@ -21,10 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +52,8 @@ fun AppCard(
     showLabel: Boolean = true,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val labelAlpha by animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "label")
+    // Read only in the graphics layer, so the fade redraws the label without recomposing the card.
+    val labelAlpha = animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "label")
     val colors = MaterialTheme.colorScheme
 
     Column(modifier) {
@@ -81,7 +82,7 @@ fun AppCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 14.dp)
-                .alpha(labelAlpha),
+                .graphicsLayer { alpha = labelAlpha.value },
             color = colors.onSurface,
             style = MaterialTheme.typography.titleSmall,
             textAlign = TextAlign.Center,

@@ -2,6 +2,7 @@ package com.shieldtv.launcher
 
 import android.app.Application
 import android.os.SystemClock
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shieldtv.launcher.data.AppRepository
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class LauncherState(
     val loaded: Boolean = false,
     val allApps: List<LauncherApp> = emptyList(),
@@ -39,6 +41,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _wallpaper = MutableStateFlow<Wallpaper?>(null)
     val wallpaper: StateFlow<Wallpaper?> = _wallpaper
     private var wallpaperChangedAt = 0L
+    private var lastInteractionAt = 0L
 
     private val apps = MutableStateFlow<List<LauncherApp>?>(null)
     private val favoriteKeys = MutableStateFlow(favoritesStore.load())
@@ -77,10 +80,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 delay(WALLPAPER_INTERVAL_MS - sinceChange)
             }
             wallpapers.next()?.let {
+                // The photo crossfade and theme colour fade redraw the whole screen, so hold the
+                // new photo until the remote has been idle rather than fading under the user.
+                if (_wallpaper.value != null) awaitIdle()
                 _wallpaper.value = it
                 wallpaperChangedAt = SystemClock.elapsedRealtime()
             }
             delay(WALLPAPER_INTERVAL_MS)
+        }
+    }
+
+    /** Call on every remote key press; wallpaper swaps wait for [IDLE_BEFORE_SWAP_MS] of quiet. */
+    fun onUserInteraction() {
+        lastInteractionAt = SystemClock.elapsedRealtime()
+    }
+
+    private suspend fun awaitIdle() {
+        while (true) {
+            val idleFor = SystemClock.elapsedRealtime() - lastInteractionAt
+            if (idleFor >= IDLE_BEFORE_SWAP_MS) return
+            delay(IDLE_BEFORE_SWAP_MS - idleFor)
         }
     }
 
@@ -116,5 +135,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         const val WALLPAPER_INTERVAL_MS = 15 * 60 * 1000L
         /** Avoid a new photo every time the user pops back to Home for a moment. */
         const val WALLPAPER_MIN_GAP_MS = 2 * 60 * 1000L
+        const val IDLE_BEFORE_SWAP_MS = 4_000L
     }
 }

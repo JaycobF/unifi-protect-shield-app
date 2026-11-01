@@ -64,6 +64,15 @@ https://github.com/JaycobF/unifi-protect-shield-app/raw/claude/shield-tv-launche
 On the TV, install the **Downloader** app (by AFTVnews), enter the link above, and allow it
 to install unknown apps when prompted.
 
+### Smoothness tip
+
+Android pre-compiles a sideloaded app in the background over time, so the first few minutes
+after installing can feel less smooth. To compile it right away (needs adb):
+
+```bash
+adb shell cmd package compile -m speed-profile -f com.shieldtv.launcher
+```
+
 ## Build & install
 
 Requires JDK 17+ and the Android SDK (platform 35).

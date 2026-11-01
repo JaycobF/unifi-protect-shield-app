@@ -1,0 +1,5 @@
+# Pre-compile the launcher's own code at install time so the first scrolls aren't run in the
+# interpreter/JIT. Compose and TV Material ship their own profiles, which profileinstaller
+# applies alongside this one.
+HSPLcom/shieldtv/launcher/**->**(**)**
+Lcom/shieldtv/launcher/**;
