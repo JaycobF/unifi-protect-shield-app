@@ -1,0 +1,101 @@
+name: Build DV Converter
+
+on:
+  push:
+    paths:
+      - "dv-converter/**"
+      - ".github/workflows/build-dv-converter.yml"
+    tags: ["dv-converter-v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: build-dv-converter-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write  # attach builds to a release when a tag is pushed
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+          - os: macos-latest
+            label: macOS-AppleSilicon
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: dv-converter
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Bundle dovi_tool
+        run: |
+          mkdir -p bin dl
+          if [ "$RUNNER_OS" = "Windows" ]; then pattern='*x86_64-pc-windows-msvc*'; else pattern='*macOS*'; fi
+          gh release download --repo quietvoid/dovi_tool --pattern "$pattern" --dir dl
+          for f in dl/*; do
+            case "$f" in
+              *.zip) python -m zipfile -e "$f" dl/x ;;
+              *.tar.gz) python -m tarfile -e "$f" dl/x ;;
+            esac
+          done
+          find dl/x -type f \( -name dovi_tool -o -name dovi_tool.exe \) -exec cp {} bin/ \;
+          chmod +x bin/* || true
+          ls -la bin
+          test -n "$(ls bin)"
+
+      - name: Bundle ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          gh release download latest --repo BtbN/FFmpeg-Builds --pattern 'ffmpeg-master-latest-win64-gpl.zip' --dir dl
+          python -m zipfile -e dl/ffmpeg-master-latest-win64-gpl.zip dl/ff
+          cp dl/ff/*/bin/ffmpeg.exe dl/ff/*/bin/ffprobe.exe bin/
+          ls -la bin
+
+      - name: Build app
+        run: python -m PyInstaller --noconfirm dv_converter.spec
+
+      - name: Read version
+        run: echo "VERSION=$(python -c 'import dvconvert, sys; sys.stdout.write(dvconvert.__version__)')" >> "$GITHUB_ENV"
+
+      - name: Build installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; if ($LASTEXITCODE) { exit 1 } }
+          & $iscc "/DAppVersion=$env:VERSION" installer\windows\dv-converter.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "INSTALLER=dist/DV-Converter-Setup-$env:VERSION.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build disk image (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          installer/macos/make-dmg.sh "$VERSION"
+          echo "INSTALLER=dist/DV-Converter-$VERSION.dmg" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DV-Converter-${{ matrix.label }}
+          path: dv-converter/${{ env.INSTALLER }}
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          gh release upload "$GITHUB_REF_NAME" "$INSTALLER" --clobber --repo "$GITHUB_REPOSITORY" \
+            || gh release create "$GITHUB_REF_NAME" "$INSTALLER" --title "DV Converter ${GITHUB_REF_NAME#dv-converter-v}" --repo "$GITHUB_REPOSITORY"
