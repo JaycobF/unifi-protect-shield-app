@@ -8,21 +8,27 @@ Drop files into the window and click **Convert**. Each file is saved next to the
 original as `Name.P8.mkv`, or in a folder you choose. Audio, subtitles and
 chapters are copied unchanged.
 
-## Download
+## Install
 
-Builds come from the **Build DV Converter** workflow on GitHub Actions:
+Installers come from the **Build DV Converter** workflow on GitHub Actions:
 
 1. Open the repository's **Actions** tab and choose the latest successful
    **Build DV Converter** run.
-2. Download `DV-Converter-Windows` or `DV-Converter-macOS-AppleSilicon`.
-3. Unzip it.
-   - **Windows:** open the `DV Converter` folder and run `DV Converter.exe`. If
-     SmartScreen warns about an unrecognized app, click **More info → Run anyway**.
-   - **macOS:** move `DV Converter.app` to Applications. The app isn't signed, so
-     the first time, right-click it and choose **Open**, then **Open** again.
+2. Download `DV-Converter-Windows` or `DV-Converter-macOS-AppleSilicon` and unzip it.
+3. Install:
+   - **Windows:** run `DV-Converter-Setup-<version>.exe`. It installs for your
+     user account without asking for admin rights, adds a Start menu shortcut
+     and an uninstaller, and offers to open the MKVToolNix download page if
+     MKVToolNix isn't installed. Because the installer isn't signed,
+     SmartScreen may warn about an unrecognized app: click
+     **More info → Run anyway**.
+   - **macOS:** open `DV-Converter-<version>.dmg` and drag **DV Converter** onto
+     **Applications**. The app isn't notarized by Apple, so the first time you
+     open it macOS blocks it. Go to **System Settings → Privacy & Security**,
+     scroll down and click **Open Anyway** next to DV Converter.
 
-Pushing a tag such as `dv-converter-v1.0.0` also attaches both builds to a GitHub
-release.
+Pushing a tag such as `dv-converter-v1.0.0` also attaches both installers to a
+GitHub release.
 
 ## Tools it needs
 
@@ -69,3 +75,10 @@ python -m dvconvert.cli Movie.mkv           # command line
 To build the app yourself, put `dovi_tool` (and optionally `ffmpeg`/`ffprobe`)
 in `dv-converter/bin/`, then run `pip install pyinstaller` and
 `pyinstaller --noconfirm dv_converter.spec`. The app appears in `dist/`.
+Then make the installer:
+
+- **Windows:** install [Inno Setup 6](https://jrsoftware.org/isdl.php) and run
+  `iscc /DAppVersion=1.0.0 installer\windows\dv-converter.iss`.
+- **macOS:** run `installer/macos/make-dmg.sh 1.0.0`.
+
+Both write the installer to `dist/`.

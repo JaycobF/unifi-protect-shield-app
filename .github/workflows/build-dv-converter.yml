@@ -65,21 +65,33 @@ jobs:
       - name: Build app
         run: python -m PyInstaller --noconfirm dv_converter.spec
 
-      - name: Package (Windows)
+      - name: Read version
+        run: echo "VERSION=$(python -c 'import dvconvert, sys; sys.stdout.write(dvconvert.__version__)')" >> "$GITHUB_ENV"
+
+      - name: Build installer (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path "dist/DV Converter" -DestinationPath "DV-Converter-${{ matrix.label }}.zip"
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; if ($LASTEXITCODE) { exit 1 } }
+          & $iscc "/DAppVersion=$env:VERSION" installer\windows\dv-converter.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "INSTALLER=dist/DV-Converter-Setup-$env:VERSION.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Package (macOS)
+      - name: Build disk image (macOS)
         if: runner.os == 'macOS'
-        run: ditto -c -k --keepParent "dist/DV Converter.app" "DV-Converter-${{ matrix.label }}.zip"
+        run: |
+          installer/macos/make-dmg.sh "$VERSION"
+          echo "INSTALLER=dist/DV-Converter-$VERSION.dmg" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
           name: DV-Converter-${{ matrix.label }}
-          path: dv-converter/DV-Converter-${{ matrix.label }}.zip
+          path: dv-converter/${{ env.INSTALLER }}
           if-no-files-found: error
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
-        run: gh release upload "${GITHUB_REF_NAME}" "DV-Converter-${{ matrix.label }}.zip" --clobber --repo "${{ github.repository }}" || gh release create "${GITHUB_REF_NAME}" "DV-Converter-${{ matrix.label }}.zip" --title "DV Converter ${GITHUB_REF_NAME#dv-converter-v}" --repo "${{ github.repository }}"
+        run: |
+          gh release upload "$GITHUB_REF_NAME" "$INSTALLER" --clobber --repo "$GITHUB_REPOSITORY" \
+            || gh release create "$GITHUB_REF_NAME" "$INSTALLER" --title "DV Converter ${GITHUB_REF_NAME#dv-converter-v}" --repo "$GITHUB_REPOSITORY"
