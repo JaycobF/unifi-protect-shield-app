@@ -27,8 +27,9 @@ Installers come from the **Build DV Converter** workflow on GitHub Actions:
      open it macOS blocks it. Go to **System Settings → Privacy & Security**,
      scroll down and click **Open Anyway** next to DV Converter.
 
-Pushing a tag such as `dv-converter-v1.0.0` also attaches both installers to a
-GitHub release.
+Each build also publishes both installers to the GitHub release
+`dv-converter-v<version>` (the version is in `dvconvert/__init__.py`). Raise the
+version to start a new release; builds of the same version replace its installers.
 
 ## Tools it needs
 
