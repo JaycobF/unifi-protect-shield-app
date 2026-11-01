@@ -56,6 +56,14 @@ the screen is left to the photo.
 - Back never exits the launcher; it returns to the Home tab.
 - Rotating Google Earth View photo backdrop with location and credit, and an M3 colour scheme generated from each photo.
 
+## Download
+
+Prebuilt APK (debug-signed, for sideloading):
+https://github.com/JaycobF/unifi-protect-shield-app/raw/claude/shield-tv-launcher/dist/ShieldHome.apk
+
+On the TV, install the **Downloader** app (by AFTVnews), enter the link above, and allow it
+to install unknown apps when prompted.
+
 ## Build & install
 
 Requires JDK 17+ and the Android SDK (platform 35).
