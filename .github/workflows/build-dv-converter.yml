@@ -8,6 +8,10 @@ on:
     tags: ["dv-converter-v*"]
   workflow_dispatch:
 
+concurrency:
+  group: build-dv-converter-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write  # attach builds to a release when a tag is pushed
 
